@@ -1,5 +1,5 @@
 obj-m :=dev.o
-KDIR  :=/usr/src/linux-headers-4.13.0-43-generic
+KDIR  :=/usr/src/linux-headers-4.13.0-45-generic
 PWD   :=${shell pwd}
 
 all:
