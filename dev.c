@@ -5,39 +5,43 @@
 #include<linux/cdev.h>
 #include<linux/uaccess.h>
 #include<linux/memory.h>
+#include<linux/delay.h>
+#include <linux/sched.h>   
+#include <linux/kthread.h> 
+#include <linux/err.h> 
+
+/*******************驱动程序**********************/
 
 static dev_t dev;
 static struct cdev my_cdev;
-char j='0';
-static ssize_t dev_read(struct file *file, char __user *buf,size_t count,loff_t *ppos){
-	
-	char data[38]="read-------ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	char kdata[39];
-	memset(kdata,0,sizeof(kdata));
-	if(j>'9')
+static struct task_struct *task;
+int count=0;
+
+
+int kthread_fun(void *data){
+	while(1)
 	{
-		j='0';
+		//set_current_state(TASK_UNINTERRUPTIBLE);
+        if(kthread_should_stop()) break;
+		printk("FlyAudio driver test %d\n",count++);
+		//schedule_timeout(HZ/250*25);//100ms
+		msleep(100);
 	}
-
-	sprintf(kdata,"%c%s",j++,data);
-	copy_to_user(buf,kdata,sizeof(kdata));
-	printk(KERN_EMERG"%s",kdata);
-	memset(kdata,0,sizeof(kdata));
-
-	
-	return sizeof(kdata); 
-
+	return 0;
 }
 
-static struct file_operations dev_flops={
+
+/*static struct file_operations dev_flops={
 
 	.owner = THIS_MODULE,
-	.read  = dev_read,
 };
-
+*/
 static int  dev_init(void){
-	int ret;
+	
+	int err;
 	printk(KERN_EMERG"INIT\n");
+/*	int ret;
+	
 	alloc_chrdev_region(&dev,0,1,"DATADEV");
 	cdev_init(&my_cdev,&dev_flops);
 	ret=cdev_add(&my_cdev,dev,1);
@@ -46,16 +50,35 @@ static int  dev_init(void){
 		printk(KERN_EMERG"cdev add faile\n");
 		return ret;
 	}
+	
+	*/
+	task=kthread_create(kthread_fun,NULL,"task");
+	 if(IS_ERR(task)){
+     printk("Unable to start kernel thread.\n");
+      err = PTR_ERR(task);
+      task =NULL;
+      return err;
+
+    }
+
+	wake_up_process(task);	
 	return 0;
 	
 	
 }
 
 static void dev_exit(void){
-
+	
+	if(task){
+   		 kthread_stop(task);
+  	  task = NULL;
+    }
+	
 	printk(KERN_EMERG"REMOVE\n");
-	cdev_del(&my_cdev);
-	unregister_chrdev_region(dev, 1);
+/*	cdev_del(&my_cdev);
+	unregister_chrdev_region(dev, 1);*/
+	
+
 
 }
 
